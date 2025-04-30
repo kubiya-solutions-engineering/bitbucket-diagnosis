@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.0"
     }
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -52,11 +56,6 @@ locals {
   repository_names = [for repo in local.repository_list : trim(split("/", repo)[1], " ")]
 }
 
-variable "BITBUCKET_USERNAME" {
-  type      = string
-  sensitive = true
-}
-
 variable "BITBUCKET_PASSWORD" {
   type      = string
   sensitive = true
@@ -65,13 +64,6 @@ variable "BITBUCKET_PASSWORD" {
 # Bitbucket Tooling - Allows the CI/CD Maintainer to use Bitbucket tools
 resource "kubiya_source" "bitbucket_tooling" {
   url = "https://github.com/kubiyabot/community-tools/tree/main/bitbucket"
-}
-
-# Create secrets using provider
-resource "kubiya_secret" "bitbucket_username" {
-  name        = "BITBUCKET_USERNAME"
-  value       = var.BITBUCKET_USERNAME
-  description = "Bitbucket username for the CI/CD Maintainer"
 }
 
 resource "kubiya_secret" "bitbucket_password" {
@@ -88,7 +80,6 @@ resource "kubiya_agent" "cicd_maintainer" {
   instructions = ""
   
   secrets      = [
-    kubiya_secret.bitbucket_username.name,
     kubiya_secret.bitbucket_password.name
   ]
   
@@ -152,7 +143,7 @@ c. Format using:
   destination = var.notification_channel
 }
 
-# Create Bitbucket webhooks using null_resource and curl
+# Create Bitbucket webhooks using null_resource and curl with OAuth authentication
 resource "null_resource" "create_bitbucket_webhook" {
   for_each = toset(local.repository_names)
   
@@ -161,19 +152,51 @@ resource "null_resource" "create_bitbucket_webhook" {
     webhook_url = kubiya_webhook.source_control_webhook.url
   }
 
-  # Create webhook using curl
+  # Create webhook using curl with OAuth Bearer token
   provisioner "local-exec" {
     command = <<-EOT
-      curl -X POST \
-        -u "${var.BITBUCKET_USERNAME}:${var.BITBUCKET_PASSWORD}" \
+      echo "Creating webhook for ${local.bitbucket_workspace}/${each.value}..."
+      echo "Webhook URL: ${kubiya_webhook.source_control_webhook.url}"
+      
+      # Create a temporary file for the webhook payload
+      PAYLOAD_FILE=$(mktemp)
+      
+      # Write the webhook payload to the file
+      cat > $PAYLOAD_FILE << EOF
+      {
+        "description": "Webhook for CI/CD Maintainer",
+        "url": "${kubiya_webhook.source_control_webhook.url}",
+        "active": true,
+        "events": [
+          "repo:push",
+          "pullrequest:created", 
+          "pullrequest:updated", 
+          "pullrequest:rejected", 
+          "pullrequest:fulfilled"
+        ]
+      }
+      EOF
+      
+      # Make the API call with OAuth Bearer token
+      RESPONSE=$(curl -v -X POST \
+        -H "Authorization: Bearer ${var.BITBUCKET_PASSWORD}" \
         -H "Content-Type: application/json" \
-        -d '{
-          "description": "Webhook for CI/CD Maintainer",
-          "url": "${kubiya_webhook.source_control_webhook.url}",
-          "active": true,
-          "events": ${jsonencode(local.bitbucket_events)}
-        }' \
-        "https://api.bitbucket.org/2.0/repositories/${local.bitbucket_workspace}/${each.value}/hooks"
+        -H "Accept: application/json" \
+        --data @$PAYLOAD_FILE \
+        "https://api.bitbucket.org/2.0/repositories/${local.bitbucket_workspace}/${each.value}/hooks" 2>&1)
+      
+      # Clean up the temporary file
+      rm $PAYLOAD_FILE
+      
+      echo "Response from Bitbucket API:"
+      echo "$RESPONSE"
+      
+      # Check if the response contains an error
+      if echo "$RESPONSE" | grep -q "error"; then
+        echo "Error creating webhook. Please check the response above."
+      else
+        echo "Webhook created successfully!"
+      fi
     EOT
   }
 }
