@@ -3,10 +3,6 @@ terraform {
     kubiya = {
       source = "kubiya-terraform/kubiya"
     }
-    bitbucket = {
-      source  = "DrFaust92/bitbucket"
-      version = "2.30.0"
-    }
     http = {
       source  = "hashicorp/http"
       version = "~> 3.0"
@@ -51,6 +47,9 @@ locals {
 
   # Bitbucket workspace handling
   bitbucket_workspace = trim(split("/", local.repository_list[0])[0], " ")
+  
+  # Extract repository names for API calls
+  repository_names = [for repo in local.repository_list : trim(split("/", repo)[1], " ")]
 }
 
 variable "BITBUCKET_USERNAME" {
@@ -61,12 +60,6 @@ variable "BITBUCKET_USERNAME" {
 variable "BITBUCKET_PASSWORD" {
   type      = string
   sensitive = true
-}
-
-# Configure providers
-provider "bitbucket" {
-  username = var.BITBUCKET_USERNAME
-  password = var.BITBUCKET_PASSWORD
 }
 
 # Bitbucket Tooling - Allows the CI/CD Maintainer to use Bitbucket tools
@@ -159,21 +152,24 @@ c. Format using:
   destination = var.notification_channel
 }
 
-# Bitbucket repository webhooks
-resource "bitbucket_webhook" "webhook" {
-  for_each = length(local.repository_list) > 0 ? toset(local.repository_list) : []
-
-  workspace = local.bitbucket_workspace
-  repository = try(
-    trim(split("/", each.value)[1], " "),
-    # Fallback if repository name can't be parsed
-    each.value
-  )
+# Create Bitbucket webhooks using HTTP provider
+resource "http_request" "create_bitbucket_webhook" {
+  for_each = toset(local.repository_names)
   
-  url          = kubiya_webhook.source_control_webhook.url
-  description  = "Webhook for CI/CD Maintainer"
-  active       = true
-  events       = local.bitbucket_events
+  url    = "https://api.bitbucket.org/2.0/repositories/${local.bitbucket_workspace}/${each.value}/hooks"
+  method = "POST"
+  
+  headers = {
+    Content-Type  = "application/json"
+    Authorization = "Basic ${base64encode("${var.BITBUCKET_USERNAME}:${var.BITBUCKET_PASSWORD}")}"
+  }
+  
+  body = jsonencode({
+    description = "Webhook for CI/CD Maintainer"
+    url         = kubiya_webhook.source_control_webhook.url
+    active      = true
+    events      = local.bitbucket_events
+  })
 }
 
 # Output the teammate details
