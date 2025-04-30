@@ -3,8 +3,8 @@ terraform {
     kubiya = {
       source = "kubiya-terraform/kubiya"
     }
-    http = {
-      source  = "hashicorp/http"
+    null = {
+      source  = "hashicorp/null"
       version = "~> 3.0"
     }
   }
@@ -152,24 +152,30 @@ c. Format using:
   destination = var.notification_channel
 }
 
-# Create Bitbucket webhooks using HTTP provider
-resource "http_request" "create_bitbucket_webhook" {
+# Create Bitbucket webhooks using null_resource and curl
+resource "null_resource" "create_bitbucket_webhook" {
   for_each = toset(local.repository_names)
   
-  url    = "https://api.bitbucket.org/2.0/repositories/${local.bitbucket_workspace}/${each.value}/hooks"
-  method = "POST"
-  
-  headers = {
-    Content-Type  = "application/json"
-    Authorization = "Basic ${base64encode("${var.BITBUCKET_USERNAME}:${var.BITBUCKET_PASSWORD}")}"
+  # This will run when the webhook URL changes
+  triggers = {
+    webhook_url = kubiya_webhook.source_control_webhook.url
   }
-  
-  body = jsonencode({
-    description = "Webhook for CI/CD Maintainer"
-    url         = kubiya_webhook.source_control_webhook.url
-    active      = true
-    events      = local.bitbucket_events
-  })
+
+  # Create webhook using curl
+  provisioner "local-exec" {
+    command = <<-EOT
+      curl -X POST \
+        -u "${var.BITBUCKET_USERNAME}:${var.BITBUCKET_PASSWORD}" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "description": "Webhook for CI/CD Maintainer",
+          "url": "${kubiya_webhook.source_control_webhook.url}",
+          "active": true,
+          "events": ${jsonencode(local.bitbucket_events)}
+        }' \
+        "https://api.bitbucket.org/2.0/repositories/${local.bitbucket_workspace}/${each.value}/hooks"
+    EOT
+  }
 }
 
 # Output the teammate details
