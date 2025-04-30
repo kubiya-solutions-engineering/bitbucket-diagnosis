@@ -5,9 +5,6 @@ icons:
   - "https://wac-cdn.atlassian.com/assets/img/favicons/bitbucket/favicon-32x32.png"
 description: "AI-powered assistant that helps diagnose and fix Bitbucket Pipelines failures. The maintainer monitors your repositories for failed pipelines, analyzes the failures, and provides detailed solutions directly in your pull requests."
 secrets:
-  - name: Bitbucket Username
-    description: "Bitbucket username for authentication. Required for Bitbucket repositories."
-    to_env: BITBUCKET_USERNAME
   - name: Bitbucket Password
     description: "Bitbucket app password with repository and webhook permissions. Generate at: https://bitbucket.org/account/settings/app-passwords/"
     to_env: BITBUCKET_PASSWORD
