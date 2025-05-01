@@ -75,19 +75,23 @@ resource "kubiya_webhook" "source_control_webhook" {
   prompt      = <<-EOT
 Your Goal: Perform a comprehensive analysis of the failed Bitbucket Pipeline. No user approval is required, complete the flow end to end.
 Pipeline Build Number: {{.event.commit_status.key}}
+Pipeline Name: {{.event.commit_status.name}}
 Repository: {{.event.repository.full_name}}
 Commit: {{.event.commit_status.commit.hash}}
 Branch: {{.event.commit_status.refname}}
 
 Instructions:
 
-1. First, extract the workspace and repo from the repository full name (format: "workspace/repo").
+1. Extract the workspace and repo from the repository full name (format: "workspace/repo").
 
-2. Use bitbucket_pipeline_list to find the pipeline UUID for build number {{.event.commit_status.key}} in the repository.
+2. Use bitbucket_pipeline_get to directly fetch details for the failed pipeline using:
+   - workspace: [extracted workspace]
+   - repo: [extracted repo]
+   - pipeline_uuid: {{.event.commit_status.key}}
 
 3. Use bitbucket_pipeline_steps to identify all steps in the pipeline and find the failed step's UUID.
 
-4. Use bitbucket_pipeline_logs to fetch logs for the failed step. Wait until this step finishes.
+4. Use bitbucket_pipeline_logs to fetch logs for the failed step.
 
 5. Utilize available tools to thoroughly investigate the root cause such as viewing the pipeline run, the commit details, the files, and the logs - do not execute more than two tools at a time.
 
