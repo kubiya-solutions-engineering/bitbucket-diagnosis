@@ -130,7 +130,7 @@ resource "null_resource" "create_bitbucket_webhook" {
         "url": "${kubiya_webhook.source_control_webhook.url}",
         "active": true,
         "events": [
-          "build:status:updated"
+          "repo:commit_status_updated"
         ]
       }
       EOF
