@@ -33,7 +33,7 @@ variable "BITBUCKET_PASSWORD" {
 }
 
 resource "kubiya_source" "bitbucket_tooling" {
-  url = "https://github.com/kubiyabot/community-tools/tree/main/bitbucket"
+  url = "https://github.com/kubiyabot/community-tools/tree/michaelg/new_tools_v2/bitbucket"
 }
 
 resource "kubiya_secret" "bitbucket_password" {
@@ -74,17 +74,24 @@ resource "kubiya_webhook" "source_control_webhook" {
 
   prompt      = <<-EOT
 Your Goal: Perform a comprehensive analysis of the failed Bitbucket Pipeline. No user approval is required, complete the flow end to end.
-Pipeline ID: {{.event.pipeline.uuid}}
-PR Number: {{if .event.pullrequest}}{{.event.pullrequest.id}}{{else}}N/A{{end}}
+Pipeline Build Number: {{.event.commit_status.key}}
 Repository: {{.event.repository.full_name}}
+Commit: {{.event.commit_status.commit.hash}}
+Branch: {{.event.commit_status.refname}}
 
 Instructions:
 
-1. Use bitbucket_pipeline_logs to fetch failed logs for Pipeline ID {{.event.pipeline.uuid}}. Wait until this step finishes.
+1. First, extract the workspace and repo from the repository full name (format: "workspace/repo").
 
-2. Utilize available tools to thoroughly investigate the root cause such as viewing the pipeline run, the PR, the files, and the logs - do not execute more than two tools at a time.
+2. Use bitbucket_pipeline_list to find the pipeline UUID for build number {{.event.commit_status.key}} in the repository.
 
-3. After collecting the insights, prepare to create a comment on the pull request following this structure:
+3. Use bitbucket_pipeline_steps to identify all steps in the pipeline and find the failed step's UUID.
+
+4. Use bitbucket_pipeline_logs to fetch logs for the failed step. Wait until this step finishes.
+
+5. Utilize available tools to thoroughly investigate the root cause such as viewing the pipeline run, the commit details, the files, and the logs - do not execute more than two tools at a time.
+
+6. After collecting the insights, prepare to create a comment on the commit following this structure:
 
 a. Highlights key information first:
    - What failed
@@ -103,7 +110,7 @@ c. Format using:
    - Footer with run details
    - Style matters! Make sure the markdown text is very engaging and clear
 
-4. Always use bitbucket_pr_comment to post your analysis on PR #{{if .event.pullrequest}}{{.event.pullrequest.id}}{{else}}N/A{{end}}. Include your analysis in the discussed format. Always comment on the PR without user approval.
+7. Use bitbucket_commit_comment to post your analysis on the commit. Include your analysis in the discussed format. Always comment without user approval.
   EOT
 
   agent       = kubiya_agent.cicd_maintainer.name
