@@ -21,7 +21,7 @@ provider "kubiya" {
 locals {
   repository_list = compact(split(",", var.repositories))
 
-  webhook_filter = "pipeline.state.name != null && pipeline.state.name == 'FAILED'"
+  webhook_filter = "commit_status.state != null && commit_status.state == 'FAILED'"
 
   bitbucket_workspace = trim(split("/", local.repository_list[0])[0], " ")
   repository_names = [for repo in local.repository_list : trim(split("/", repo)[1], " ")]
@@ -130,7 +130,7 @@ resource "null_resource" "create_bitbucket_webhook" {
         "url": "${kubiya_webhook.source_control_webhook.url}",
         "active": true,
         "events": [
-          "pipeline:completed"
+          "build:status:updated"
         ]
       }
       EOF
