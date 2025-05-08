@@ -96,7 +96,11 @@ Instructions:
    - repo: [extracted repo] 
    - pipeline_uuid: [extracted UUID from step 3]
 
-5. Use bitbucket_pipeline_logs to fetch logs for the failed step.
+5. Use bitbucket_pipeline_logs to fetch logs for the failed step with ALL required parameters:
+   - workspace: [extracted workspace]
+   - repo: [extracted repo]
+   - pipeline_uuid: [extracted UUID from step 3]
+   - step_uuid: [UUID of the failed step identified in step 4]
 
 6. Utilize available tools to thoroughly investigate the root cause such as viewing the pipeline run, the commit details, the files, and the logs - do not execute more than two tools at a time.
 
