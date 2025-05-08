@@ -89,13 +89,18 @@ Instructions:
    - repo: [extracted repo]
    - pipeline_uuid: {{.event.commit_status.key}}
 
-3. Use bitbucket_pipeline_steps to identify all steps in the pipeline and find the failed step's UUID.
+3. From the bitbucket_pipeline_get response, extract the actual UUID (format: "{uuid}") from the "uuid" field.
 
-4. Use bitbucket_pipeline_logs to fetch logs for the failed step.
+4. Use bitbucket_pipeline_steps with the extracted UUID to identify all steps in the pipeline and find the failed step's UUID:
+   - workspace: [extracted workspace]
+   - repo: [extracted repo] 
+   - pipeline_uuid: [extracted UUID from step 3]
 
-5. Utilize available tools to thoroughly investigate the root cause such as viewing the pipeline run, the commit details, the files, and the logs - do not execute more than two tools at a time.
+5. Use bitbucket_pipeline_logs to fetch logs for the failed step.
 
-6. After collecting the insights, prepare to create a comment on the commit following this structure:
+6. Utilize available tools to thoroughly investigate the root cause such as viewing the pipeline run, the commit details, the files, and the logs - do not execute more than two tools at a time.
+
+7. After collecting the insights, prepare to create a comment on the commit following this structure:
 
 a. Highlights key information first:
    - What failed
@@ -114,7 +119,7 @@ c. Format using:
    - Footer with run details
    - Style matters! Make sure the markdown text is very engaging and clear
 
-7. Use bitbucket_commit_comment to post your analysis on the commit. Include your analysis in the discussed format. Always comment without user approval.
+8. Use bitbucket_commit_comment to post your analysis on the commit. Include your analysis in the discussed format. Always comment without user approval.
   EOT
 
   agent       = kubiya_agent.cicd_maintainer.name
