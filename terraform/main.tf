@@ -79,6 +79,8 @@ Pipeline Name: {{.event.commit_status.name}}
 Repository: {{.event.repository.full_name}}
 Commit: {{.event.commit_status.commit.hash}}
 Branch: {{.event.commit_status.refname}}
+Pipeline URL: {{.event.commit_status.url}}
+Commit URL: {{.event.commit_status.commit.links.html.href}}
 
 Instructions:
 
@@ -120,10 +122,12 @@ c. Format using:
    - Clear markdown headers
    - Emojis for quick scanning
    - Error logs in collapsible sections
-   - Footer with run details
+   - Footer with run details and links to both the pipeline and commit
    - Style matters! Make sure the markdown text is very engaging and clear
 
-8. Use bitbucket_commit_comment to post your analysis on the commit. Include your analysis in the discussed format. Always comment without user approval.
+8. IMPORTANT: You MUST use bitbucket_commit_comment to post your analysis on the commit. Include your analysis in the discussed format. Always comment without user approval.
+
+9. After posting the comment, share both the pipeline URL ({{.event.commit_status.url}}) and commit URL ({{.event.commit_status.commit.links.html.href}}) in the notification channel so team members can easily access the analysis.
   EOT
 
   agent       = kubiya_agent.cicd_maintainer.name
